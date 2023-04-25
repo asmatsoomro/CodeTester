@@ -1,0 +1,44 @@
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.common.serialization.StringDeserializer
+import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
+import org.springframework.kafka.support.serializer.JsonDeserializer
+import reactor.core.publisher.Flux
+
+data class Promo(val promoId: String, val promoDescription: String)
+
+fun main(args: Array<String>) {
+    val bootstrapServers = "cluster.playground.cdkt.io:9092"
+    val groupId = "promo-group"
+    val topic = "promo-topic"
+    val securityProtocol = "SASL_SSL"
+    val saslJaasConfig = """org.apache.kafka.common.security.plain.PlainLoginModule required username="4CejvDUGJh2BfcbR9uDAMD" password="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2F1dGguY29uZHVrdG9yLmlvIiwic291cmNlQXBwbGljYXRpb24iOiJhZG1pbiIsInVzZXJNYWlsIjpudWxsLCJwYXlsb2FkIjp7InZhbGlkRm9yVXNlcm5hbWUiOiI0Q2VqdkRVR0poMkJmY2JSOXVEQU1EIiwib3JnYW5pemF0aW9uSWQiOjY3MTI0LCJ1c2VySWQiOjc2OTE0LCJmb3JFeHBpcmF0aW9uQ2hlY2siOiI3ZWEyNWIwYi1jNDdhLTRkZDEtODQ1NC1jMzc2OTA2YWE1N2UifX0.AHpLqZdYZFtJ1e2iSRrCdg2c5oLTMncZQay2_puroJU";"""
+    val saslMechanism = "PLAIN"
+
+    val consumerConfig = mapOf(
+            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
+            ConsumerConfig.GROUP_ID_CONFIG to groupId,
+            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest",
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to JsonDeserializer::class.java,
+            "spring.kafka.consumer.properties.security.protocol" to securityProtocol,
+            "spring.kafka.consumer.properties.sasl.jaas.config" to saslJaasConfig,
+            "spring.kafka.consumer.properties.sasl.mechanism" to saslMechanism
+    )
+
+    val consumerTemplate = ReactiveKafkaConsumerTemplate<String, Promo>(consumerConfig)
+
+    val objectMapper = ObjectMapper()
+
+    val messageFlux: Flux<Promo> = consumerTemplate
+            .receiveAutoAck()
+            .map { record ->
+                val value = record.value()
+                objectMapper.readValue<Promo>(value)
+            }
+
+    messageFlux.subscribe { promo ->
+        println("Received promo with id ${promo.promoId} and description ${promo.promoDescription}")
+    }
+}
