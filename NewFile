@@ -1,0 +1,65 @@
+import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
+
+data class Promos(val promoId: String, val promoDescription: String)
+
+class KafkaConsumer(private val consumerTemplate: ReactiveKafkaConsumerTemplate<String, Promos>) {
+    fun consume() {
+        consumerTemplate.receive()
+            .doOnNext { record ->
+                val promos = record.value()
+                println("Received promos: $promos")
+            }
+            .subscribe()
+    }
+}
+
+fun main() {
+    val consumerTemplate = ReactiveKafkaConsumerTemplate<String, Promos>(/* Kafka consumer properties here */)
+    val kafkaConsumer = KafkaConsumer(consumerTemplate)
+    kafkaConsumer.consume()
+}
+
+
+val consumerTemplate = ReactiveKafkaConsumerTemplate<String, Promos>(ConsumerConfigurations.consumerConfigs(), listOf("my-topic"))
+
+
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.common.serialization.StringDeserializer
+import org.springframework.kafka.support.serializer.JsonDeserializer
+
+object ConsumerConfigurations {
+    fun consumerConfigs(): Properties {
+        val props = Properties()
+
+        props[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9092"
+        props[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
+        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = JsonDeserializer::class.java
+        props[ConsumerConfig.GROUP_ID_CONFIG] = "my-group-id"
+        props[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
+
+        // configure JsonDeserializer to deserialize the Promos object
+        val jsonDeserializer = JsonDeserializer(Promos::class.java)
+        jsonDeserializer.setRemoveTypeHeaders(false)
+        jsonDeserializer.addTrustedPackages("*")
+        props[JsonDeserializer.TRUSTED_PACKAGES] = "*"
+        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = jsonDeserializer
+
+        return props
+    }
+}
+
+
+fun consumerConfigs(): Map<String, Any> {
+    val props: MutableMap<String, Any> = HashMap()
+    props[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "cluster.playground.cdkt.io:9092"
+    props[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
+    props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = JsonDeserializer::class.java
+    props[ConsumerConfig.GROUP_ID_CONFIG] = "test-group"
+    props[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
+    props[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = false
+    props[ConsumerConfig.MAX_POLL_RECORDS_CONFIG] = 10
+    props["security.protocol"] = "SASL_SSL"
+    props["sasl.jaas.config"] = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"4CejvDUGJh2BfcbR9uDAMD\" password=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2F1dGguY29uZHVrdG9yLmlvIiwic291cmNlQXBwbGljYXRpb24iOiJhZG1pbiIsInVzZXJNYWlsIjpudWxsLCJwYXlsb2FkIjp7InZhbGlkRm9yVXNlcm5hbWUiOiI0Q2VqdkRVR0poMkJmY2JSOXVEQU1EIiwib3JnYW5pemF0aW9uSWQiOjY3MTI0LCJ1c2VySWQiOjc2OTE0LCJmb3JFeHBpcmF0aW9uQ2hlY2siOiI3ZWEyNWIwYi1jNDdhLTRkZDEtODQ1NC1jMzc2OTA2YWE1N2UifX0.AHpLqZdYZFtJ1e2iSRrCdg2c5oLTMncZQay2_puroJU\";"
+    props["sasl.mechanism"] = "PLAIN"
+    return props
+}
