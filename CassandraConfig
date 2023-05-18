@@ -1,0 +1,39 @@
+import org.springframework.context.annotation.Configuration
+import org.springframework.data.cassandra.config.AbstractReactiveCassandraConfiguration
+import org.springframework.data.cassandra.config.CassandraClusterFactoryBean
+import org.springframework.data.cassandra.config.CassandraSessionFactoryBean
+import org.springframework.data.cassandra.core.CassandraOperations
+import org.springframework.data.cassandra.core.CassandraTemplate
+import org.springframework.data.cassandra.core.mapping.CassandraMappingContext
+
+@Configuration
+class CassandraConfig : AbstractReactiveCassandraConfiguration() {
+
+    override fun getKeyspaceName(): String {
+        return "promotion"
+    }
+
+    override fun cluster(): CassandraClusterFactoryBean {
+        val cluster = CassandraClusterFactoryBean()
+        cluster.setContactPoints("127.0.0.1") // Set the Cassandra contact points
+        cluster.setPort(9042) // Set the Cassandra port
+        cluster.setKeyspaceCreations(getKeyspaceCreations())
+        return cluster
+    }
+
+    override fun session(): CassandraSessionFactoryBean {
+        val session = CassandraSessionFactoryBean()
+        session.setCluster(cluster().`object`)
+        session.setKeyspaceName(getKeyspaceName())
+        session.setConverter(cassandraConverter())
+        return session
+    }
+
+    override fun cassandraMapping(): CassandraMappingContext {
+        return CassandraMappingContext()
+    }
+
+    fun cassandraTemplate(session: CassandraSessionFactoryBean): CassandraOperations {
+        return CassandraTemplate(session.`object`)
+    }
+}
