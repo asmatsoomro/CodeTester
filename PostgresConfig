@@ -105,5 +105,18 @@ class DatabaseConfiguration {
     @Primary
     fun transactionManager(entityManagerFactory: EntityManagerFactory): PlatformTransactionManager {
         return JpaTransactionManager(entityManagerFactory)
+        
+        
+        spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dbname?ssl=true&sslmode=require&sslcert=/path/to/client.crt&sslkey=/path/to/client.key&sslrootcert=/path/to/root.crt
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+      dialect: org.hibernate.dialect.PostgreSQLDialect
+      show-sql:
+
    
 
