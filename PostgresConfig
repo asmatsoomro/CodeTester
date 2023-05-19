@@ -130,5 +130,61 @@ spring:
     "hibernate.implicit_naming_strategy" to "org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy"
 )
 
+
+import com.zaxxer.hikari.HikariDataSource
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import javax.sql.DataSource
+
+@Configuration
+class DatabaseConfig {
+
+    @Value("\${spring.datasource.url}")
+    private lateinit var url: String
+
+    @Value("\${spring.datasource.username}")
+    private lateinit var username: String
+
+    @Value("\${spring.datasource.password}")
+    private lateinit var password: String
+
+    @Value("\${spring.datasource.driver-class-name}")
+    private lateinit var driverClassName: String
+
+    @Value("\${spring.datasource.ssl.enabled}")
+    private var sslEnabled: Boolean = false
+
+    @Value("\${spring.datasource.ssl.mode}")
+    private lateinit var sslMode: String
+
+    @Value("\${spring.datasource.ssl.root-certificate}")
+    private lateinit var rootCertificatePath: String
+
+    @Value("\${spring.datasource.ssl.client-certificate}")
+    private lateinit var clientCertificatePath: String
+
+    @Value("\${spring.datasource.ssl.client-key}")
+    private lateinit var clientKeyPath: String
+
+    @Bean
+    fun dataSource(): DataSource {
+        val dataSource = HikariDataSource()
+        dataSource.jdbcUrl = url
+        dataSource.username = username
+        dataSource.password = password
+        dataSource.driverClassName = driverClassName
+
+        if (sslEnabled) {
+            dataSource.addDataSourceProperty("sslmode", sslMode)
+            dataSource.addDataSourceProperty("sslrootcert", rootCertificatePath)
+            dataSource.addDataSourceProperty("sslcert", clientCertificatePath)
+            dataSource.addDataSourceProperty("sslkey", clientKeyPath)
+        }
+
+        return dataSource
+    }
+}
+
    
 
