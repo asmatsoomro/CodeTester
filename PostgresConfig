@@ -1,0 +1,44 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mydatabase
+    username: myusername
+    password: mypassword
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        connection:
+          provider_disables_autocommit: true
+          provider_class: org.hibernate.hikaricp.internal.HikariCPConnectionProvider
+          url: jdbc:postgresql://localhost:5432/mydatabase
+          username: myusername
+          password: mypassword
+          driver_class: org.postgresql.Driver
+          hikari:
+            connectionTimeout: 20000
+      ssl: true
+      sslfactory: org.postgresql.ssl.NonValidatingFactory
+      sslrootcert: /path/to/ca.crt
+      sslcert: /path/to/client.crt
+      sslkey: /path/to/client.key
+
+implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+implementation 'org.postgresql:postgresql'
+
+
+import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.jdbc.DataSourceBuilder
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import javax.sql.DataSource
+
+@Configuration
+class PostgresConfiguration {
+
+    @Bean
+    @ConfigurationProperties(prefix = "spring.datasource")
+    fun dataSource(): DataSource {
+        return DataSourceBuilder.create().build()
+    }
+}
