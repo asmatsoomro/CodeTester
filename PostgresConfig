@@ -117,6 +117,18 @@ spring:
       ddl-auto: update
       dialect: org.hibernate.dialect.PostgreSQLDialect
       show-sql:
+      
+      
+      entityManagerFactoryBean.jpaPropertyMap = mapOf(
+    "hibernate.dialect" to "org.hibernate.dialect.PostgreSQLDialect",
+    "hibernate.hbm2ddl.auto" to "update",
+    "hibernate.show_sql" to "true",
+    "hibernate.format_sql" to "true",
+    "hibernate.temp.use_jdbc_metadata_defaults" to "false",
+    "hibernate.connection.provider_disables_autocommit" to "true",
+    "hibernate.physical_naming_strategy" to "org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy",
+    "hibernate.implicit_naming_strategy" to "org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy"
+)
 
    
 
