@@ -42,3 +42,68 @@ class PostgresConfiguration {
         return DataSourceBuilder.create().build()
     }
 }
+
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.jdbc.DataSourceBuilder
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
+import org.springframework.orm.jpa.JpaTransactionManager
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.annotation.EnableTransactionManagement
+import java.io.FileInputStream
+import java.security.KeyStore
+import javax.persistence.EntityManagerFactory
+import javax.sql.DataSource
+
+@Configuration
+@EnableTransactionManagement
+class DatabaseConfiguration {
+    @Value("\${spring.datasource.url}")
+    private lateinit var url: String
+
+    @Value("\${spring.datasource.username}")
+    private lateinit var username: String
+
+    @Value("\${spring.datasource.password}")
+    private lateinit var password: String
+
+    @Value("\${keystore.path}")
+    private lateinit var keystorePath: String
+
+    @Value("\${keystore.password}")
+    private lateinit var keystorePassword: String
+
+    @Bean
+    @Primary
+    @ConfigurationProperties(prefix = "spring.datasource")
+    fun dataSource(): DataSource {
+        val sslFactory = SSLFactory.Builder()
+            .withDefaultTrustMaterial()
+            .withIdentityMaterial(keystorePath, keystorePassword.toCharArray())
+            .build()
+
+        return DataSourceBuilder.create()
+            .url(url)
+            .username(username)
+            .password(password)
+            .sslFactory(sslFactory)
+            .build()
+    }
+
+    @Bean
+    @Primary
+    fun entityManagerFactory(dataSource: DataSource): LocalContainerEntityManagerFactoryBean {
+        val entityManagerFactoryBean = LocalContainerEntityManagerFactoryBean()
+        entityManagerFactoryBean.dataSource = dataSource
+        return entityManagerFactoryBean
+    }
+
+    @Bean
+    @Primary
+    fun transactionManager(entityManagerFactory: EntityManagerFactory): PlatformTransactionManager {
+        return JpaTransactionManager(entityManagerFactory)
+   
+
