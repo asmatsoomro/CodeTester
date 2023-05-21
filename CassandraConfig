@@ -75,3 +75,57 @@ class CassandraConfig : AbstractCassandraConfiguration() {
     }
 }
 
+
+import org.springframework.stereotype.Service
+
+@Service
+class PromoService {
+    fun convertToPromoDef(promo: Promo): PromoDef {
+        return PromoDef(
+            promoId = promo.promoId,
+            storeNo = promo.storeNo,
+            type = promo.type,
+            active = promo.active,
+            startDate = promo.startDate,
+            endDate = promo.endDate,
+            originalDescription = promo.originalDescription,
+            couponUsageLimit = promo.couponUsageLimit,
+            extrabuckCouponAmount = promo.extrabuckCouponAmount,
+            extrabuckOfferTypeCode = promo.extrabuckOfferTypeCode,
+            extrabuckThresholdAmount = promo.extrabuckThresholdAmount,
+            minimumQuantity = promo.minimumQuantity,
+            minimumSpendAmount = promo.minimumSpendAmount,
+            offerBuyQuantity = promo.offerBuyQuantity,
+            offerGetQuantity = promo.offerGetQuantity,
+            offerPrice = promo.offerPrice,
+            offerSaleAmount = promo.offerSaleAmount,
+            offerSaleQty = promo.offerSaleQty,
+            percentageDollarOffAmount = promo.percentageDollarOffAmount,
+            percentageOfferCapAmount = promo.percentageOfferCapAmount,
+            reducedAmount = promo.reducedAmount,
+            regularRetailIndicator = promo.regularRetailIndicator,
+            saleOfferType = promo.saleOfferType,
+            secondaryPriceAmount = promo.secondaryPriceAmount,
+            adblockNumber = promo.adblockNumber,
+            adpageNumber = promo.adpageNumber,
+            adpromotypeNumber = promo.adpromotypeNumber,
+            adVersionCode = promo.adVersionCode,
+            bopisEligibleIndicator = promo.bopisEligibleIndicator,
+            orderLevelIndicator = promo.orderLevelIndicator,
+            priority = promo.priority,
+            promoDisclaimer = promo.promoDisclaimer,
+            skulistText = promo.skulistText,
+            promoTypeCode = promo.promoTypeCode,
+            promoActiveIndicator = promo.promoActiveIndicator,
+            state = promo.state,
+            offerMinimumQuantity = promo.offerMinimumQuantity,
+            itemValidationRequired = promo.itemValidationRequired,
+            bopisItemQuantity = promo.bopisItemQuantity,
+            bopisMinimumSpeedAmount = promo.bopisMinimumSpeedAmount,
+            requestedCouponCount = promo.requestedCouponCount,
+            shippingMethodCode = promo.shippingMethodCode
+        )
+    }
+}
+
+
