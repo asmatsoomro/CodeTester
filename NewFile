@@ -1,101 +1,83 @@
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.SSLContextBuilder;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.retry.RetryCallback;
-import org.springframework.retry.RetryContext;
-import org.springframework.retry.RetryPolicy;
-import org.springframework.retry.backoff.FixedBackOffPolicy;
-import org.springframework.retry.policy.SimpleRetryPolicy;
-import org.springframework.retry.support.RetryTemplate;
-import org.springframework.web.client.RestTemplate;
+import io.mockk.*
+import io.mockk.impl.annotations.InjectMockKs
+import io.mockk.impl.annotations.MockK
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.X509TrustManager;
-import javax.security.cert.X509Certificate;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.X509Certificate;
+class PromoUtilTest {
 
-public class RetryTemplateExample {
-    public static void main(String[] args) throws Exception {
-        // Create a custom SSLContext with specific cipher suite, protocol, and version
-        SSLContext sslContext = SSLContextBuilder.create()
-                .setProtocol("TLSv1.2")
-                .setSecureRandom(new java.security.SecureRandom())
-                .setCipherSuites(new String[]{"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"})
-                .build();
+    @MockK
+    private lateinit var kafkaConfig: KafkaConfig
 
-        // Create a custom SSLConnectionSocketFactory with the custom SSLContext
-        SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(sslContext) {
-            @Override
-            public void verify(String host, X509Certificate[] certificates, String authType, SSLSession session) {
-                // Access the peer certificate and extract the desired information
-                X509Certificate peerCertificate = certificates[0];
-                String issuer = peerCertificate.getIssuerDN().getName();
-                String subject = peerCertificate.getSubjectDN().getName();
-                String validFrom = peerCertificate.getNotBefore().toString();
-                String validTo = peerCertificate.getNotAfter().toString();
-                String fingerprint = getFingerprint(peerCertificate);
-                String serialNumber = peerCertificate.getSerialNumber().toString();
+    @InjectMockKs
+    private lateinit var promoUtil: PromoUtil
 
-                // Log the peer certificate information
-                System.out.println("Peer Certificate Issuer: " + issuer);
-                System.out.println("Peer Certificate Subject: " + subject);
-                System.out.println("Peer Certificate Valid From: " + validFrom);
-                System.out.println("Peer Certificate Valid To: " + validTo);
-                System.out.println("Peer Certificate Fingerprint: " + fingerprint);
-                System.out.println("Peer Certificate Serial Number: " + serialNumber);
-
-                // Perform the default certificate verification
-                super.verify(host, certificates, authType, session);
-            }
-
-            private String getFingerprint(X509Certificate certificate) {
-                try {
-                    byte[] encoded = certificate.getEncoded();
-                    MessageDigest md = MessageDigest.getInstance("SHA-256");
-                    byte[] hash = md.digest(encoded);
-                    return Hex.encodeHexString(hash);
-                } catch (CertificateEncodingException | NoSuchAlgorithmException e) {
-                    e.printStackTrace();
-                }
-                return null;
-            }
-        };
-
-        // Create a custom HttpClient with the custom SSLConnectionSocketFactory
-        HttpClient httpClient = HttpClientBuilder.create()
-                .setSSLSocketFactory(socketFactory)
-                .build();
-
-        // Create a custom HttpComponentsClientHttpRequestFactory with the custom HttpClient
-        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
-
-        // Create a RestTemplate with the custom HttpComponentsClientHttpRequestFactory
-        RestTemplate restTemplate = new RestTemplate(requestFactory);
-
-        // Configure the RetryTemplate
-        RetryTemplate retryTemplate = new RetryTemplate();
-        RetryPolicy retryPolicy = new SimpleRetryPolicy(5);
-        FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
-        backOffPolicy.setBackOffPeriod(1000L);
-        retryTemplate.setRetryPolicy(retryPolicy);
-        retryTemplate.setBackOffPolicy(backOffPolicy);
-
-        // Retry callback method that makes the REST call using the RestTemplate
-        RetryCallback<String, RuntimeException> retryCallback = new RetryCallback<String, RuntimeException>() {
-            @Override
-            public String doWithRetry(RetryContext context) throws RuntimeException {
-                // Your logic for making the REST call goes here
-                return restTemplate.getForObject("https://example.com/api", String.class);
-            }
-        };
-
-        // Execute the RetryTemplate with the retry callback method
-        String response = retryTemplate.execute(retryCallback);
-
-        // Log the response
-        System.out.println("Response: " + response);
+    @BeforeEach
+    fun setup() {
+        MockKAnnotations.init(this)
     }
+
+    @Test
+    fun testRetailPromoConfig() {
+        // Mock the required dependencies and their behavior
+        val apiKey = "your-api-key"
+        val apiSecret = "your-api-secret"
+        val bootstrapServers = "your-bootstrap-servers"
+        val clientId = "your-client-id"
+        val groupId = "your-group-id"
+        val securityProtocol = "your-security-protocol"
+        val sasMechanism = "your-sas-mechanism"
+        val keyDeserializer = "your-key-deserializer"
+        val service = "your-service"
+        val autoOffsetReset = "your-auto-offset-reset"
+        val topic = "your-topic"
+
+        every { kafkaConfig.retailApiKey } returns apiKey
+        every { kafkaConfig.retailApiSecret } returns apiSecret
+        every { kafkaConfig.consumerBootstrapServers } returns bootstrapServers
+        every { kafkaConfig.retailClientId } returns clientId
+        every { kafkaConfig.retailGroupId } returns groupId
+        every { kafkaConfig.consumerSecurityProtocol } returns securityProtocol
+        every { kafkaConfig.consumerSasMechanism } returns sasMechanism
+        every { kafkaConfig.consumerKeyDeserializer } returns keyDeserializer
+        every { kafkaConfig.retailService } returns service
+        every { kafkaConfig.consumerAuthoffsetReset } returns autoOffsetReset
+        every { kafkaConfig.retailTopic } returns topic
+
+        // Mock the ReactiveKafkaConsumerTemplate
+        val consumerTemplate = mockk<ReactiveKafkaConsumerTemplate<String, Promo>>()
+        every { promoUtil.retailPromoConfig() } returns consumerTemplate
+
+        // Execute the method to be tested
+        val result = promoUtil.retailPromoConfig()
+
+        // Verify the interactions and assertions
+        verify {
+            kafkaConfig.retailApiKey
+            kafkaConfig.retailApiSecret
+            kafkaConfig.consumerBootstrapServers
+            kafkaConfig.retailClientId
+            kafkaConfig.retailGroupId
+            kafkaConfig.consumerSecurityProtocol
+            kafkaConfig.consumerSasMechanism
+            kafkaConfig.consumerKeyDeserializer
+            kafkaConfig.retailService
+            kafkaConfig.consumerAuthoffsetReset
+            kafkaConfig.retailTopic
+            promoUtil.retailPromoConfig()
+        }
+
+        // Perform additional assertions on the result if needed
+        // For example:
+        // assertEquals(consumerTemplate, result)
+    }
+}
+
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.2'
+    testImplementation 'io.mockk:mockk:1.12.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:3.13.0'
 }
