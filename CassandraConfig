@@ -37,3 +37,56 @@ class PromoProcessorTest {
         verify { promoUtil.retailPromoConfig().receiveAutoAck() }
     }
 }
+
+
+
+
+import org.junit.ClassRule
+import org.junit.Rule
+import org.junit.Test
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
+import org.springframework.kafka.test.utils.KafkaTestUtils
+
+// Define the EmbeddedKafkaRule
+@ClassRule
+val embeddedKafkaRule = EmbeddedKafkaRule(1)
+
+class PromoProcessorTest {
+    @Rule
+    // Inject the EmbeddedKafkaRule into the test class
+    val embeddedKafka = embeddedKafkaRule
+    
+    @Test
+    fun testConsumeRecords() {
+        // Set up the embedded Kafka environment
+        val embeddedKafkaBroker = embeddedKafka.embeddedKafka
+        val producerProps = KafkaTestUtils.producerProps(embeddedKafkaBroker)
+        val consumerProps = KafkaTestUtils.consumerProps("consumer-group", "false", embeddedKafkaBroker)
+        
+        // Create a producer and send a test message
+        val producer = KafkaProducer<String, Promo>(producerProps)
+        val topic = "test-topic"
+        val promo = Promo()
+        promo.type = "promoType"
+        promo.id = "promoId"
+        producer.send(ProducerRecord(topic, promo))
+        producer.flush()
+        
+        // Create the PromoProcessor instance
+        val kafkaConfig = KafkaConfig()
+        kafkaConfig.retailBootstrapServers = embeddedKafkaBroker.brokerAddresses[0].toString()
+        kafkaConfig.retailClientId = "test-client"
+        kafkaConfig.retailGroupId = "test-group"
+        val promoUtil = PromoUtil(kafkaConfig)
+        val promoService = Mockito.mock(PromoService::class.java)
+        val promoProcessor = PromoProcessor(kafkaConfig, promoUtil, promoService)
+        
+        // Call the consumeRecords() method
+        promoProcessor.consumeRecords()
+        
+        // Assert the expected behavior
+        
+        // Verify that promoService.savePromoToDB() is called with the correct promo
+        Mockito.verify(promoService).savePromoToDB(promo)
+    }
+}
