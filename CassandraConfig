@@ -1,1 +1,39 @@
 
+import io.mockk.*
+import org.junit.jupiter.api.*
+import org.springframework.boot.test.context.*
+import org.springframework.boot.test.mock.mockito.*
+import org.springframework.kafka.core.*
+import reactor.core.publisher.*
+
+@SpringBootTest
+class PromoProcessorTest {
+    @Mockk
+    private lateinit var kafkaConfig: KafkaConfig
+
+    @Mockk
+    private lateinit var promoUtil: PromoUtil
+
+    @Mockk
+    private lateinit var promoService: PromoService
+
+    @InjectMocks
+    private lateinit var promoProcessor: PromoProcessor
+
+    @BeforeEach
+    fun setUp() {
+        MockKAnnotations.init(this)
+        every { kafkaConfig.retailclientId } returns "test-client"
+        every { promoUtil.retailPromoConfig() } returns mockk()
+        every { promoUtil.retailPromoConfig().receiveAutoAck() } returns Flux.empty()
+    }
+
+    @Test
+    fun testConsumeRecords() {
+        promoProcessor.consumeRecords()
+
+        // Verify that the expected methods are called
+        verify { promoUtil.retailPromoConfig() }
+        verify { promoUtil.retailPromoConfig().receiveAutoAck() }
+    }
+}
