@@ -1,83 +1,77 @@
-import io.mockk.*
-import io.mockk.impl.annotations.InjectMockKs
-import io.mockk.impl.annotations.MockK
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
+package com.example.promoprice.controller
 
-class PromoUtilTest {
+import com.example.promoprice.model.PricePromo
+import com.example.promoprice.model.PricingPromoResponse
+import com.example.promoprice.model.PricingResponse
+import com.example.promoprice.model.PromoResponse
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.client.RestTemplate
+import io.lettuce.core.RedisClient
+import io.lettuce.core.api.StatefulRedisConnection
+import io.lettuce.core.api.sync.RedisCommands
 
-    @MockK
-    private lateinit var kafkaConfig: KafkaConfig
+@RestController
+@RequestMapping("/promo-price/services/v1/sku-variants")
+class SkuVariantController {
 
-    @InjectMockKs
-    private lateinit var promoUtil: PromoUtil
+    @Autowired
+    lateinit var redisClient: RedisClient
 
-    @BeforeEach
-    fun setup() {
-        MockKAnnotations.init(this)
-    }
+    @Autowired
+    lateinit var restTemplate: RestTemplate
 
-    @Test
-    fun testRetailPromoConfig() {
-        // Mock the required dependencies and their behavior
-        val apiKey = "your-api-key"
-        val apiSecret = "your-api-secret"
-        val bootstrapServers = "your-bootstrap-servers"
-        val clientId = "your-client-id"
-        val groupId = "your-group-id"
-        val securityProtocol = "your-security-protocol"
-        val sasMechanism = "your-sas-mechanism"
-        val keyDeserializer = "your-key-deserializer"
-        val service = "your-service"
-        val autoOffsetReset = "your-auto-offset-reset"
-        val topic = "your-topic"
+    @GetMapping("/{skuId}")
+    fun getSkuVariant(@PathVariable skuId: String): ResponseEntity<Any> {
+        val connection: StatefulRedisConnection<String, String> = redisClient.connect()
+        val syncCommands: RedisCommands<String, String> = connection.sync()
+        val redisKey = "sku:$skuId"
 
-        every { kafkaConfig.retailApiKey } returns apiKey
-        every { kafkaConfig.retailApiSecret } returns apiSecret
-        every { kafkaConfig.consumerBootstrapServers } returns bootstrapServers
-        every { kafkaConfig.retailClientId } returns clientId
-        every { kafkaConfig.retailGroupId } returns groupId
-        every { kafkaConfig.consumerSecurityProtocol } returns securityProtocol
-        every { kafkaConfig.consumerSasMechanism } returns sasMechanism
-        every { kafkaConfig.consumerKeyDeserializer } returns keyDeserializer
-        every { kafkaConfig.retailService } returns service
-        every { kafkaConfig.consumerAuthoffsetReset } returns autoOffsetReset
-        every { kafkaConfig.retailTopic } returns topic
-
-        // Mock the ReactiveKafkaConsumerTemplate
-        val consumerTemplate = mockk<ReactiveKafkaConsumerTemplate<String, Promo>>()
-        every { promoUtil.retailPromoConfig() } returns consumerTemplate
-
-        // Execute the method to be tested
-        val result = promoUtil.retailPromoConfig()
-
-        // Verify the interactions and assertions
-        verify {
-            kafkaConfig.retailApiKey
-            kafkaConfig.retailApiSecret
-            kafkaConfig.consumerBootstrapServers
-            kafkaConfig.retailClientId
-            kafkaConfig.retailGroupId
-            kafkaConfig.consumerSecurityProtocol
-            kafkaConfig.consumerSasMechanism
-            kafkaConfig.consumerKeyDeserializer
-            kafkaConfig.retailService
-            kafkaConfig.consumerAuthoffsetReset
-            kafkaConfig.retailTopic
-            promoUtil.retailPromoConfig()
+        if (syncCommands.exists(redisKey) == 1L) {
+            val redisResponse = syncCommands.get(redisKey)
+            val pricePromo = PricePromo.fromString(redisResponse)
+            connection.close()
+            return ResponseEntity.ok(pricePromo)
         }
 
-        // Perform additional assertions on the result if needed
-        // For example:
-        // assertEquals(consumerTemplate, result)
+        // If the entry is not in Redis, make a RestTemplate call to the Pricing Service
+        val pricingServiceUrl = "http://pricing-service-url/Pricing/v1/sku/{skuId}"
+        val pricingResponse: ResponseEntity<PricingResponse> = restTemplate.getForEntity(pricingServiceUrl, PricingResponse::class.java, skuId)
+
+        if (pricingResponse.statusCode == HttpStatus.OK) {
+            val pricingPromoResponse = PricingPromoResponse(
+                skuId = skuId,
+                price = pricingResponse.body!!.price,
+                promoCode = ""
+            )
+
+            // Make a RestTemplate call to the Promo Service
+            val promoServiceUrl = "http://promo-service-url/promo-pricing/v1/sku/{skuId}"
+            val promoResponse: ResponseEntity<PromoResponse> = restTemplate.getForEntity(promoServiceUrl, PromoResponse::class.java, skuId)
+
+            if (promoResponse.statusCode == HttpStatus.OK) {
+                pricingPromoResponse.promoCode = promoResponse.body!!.promoCode
+            }
+
+            // Store the fetched data in Redis for future use
+            syncCommands.set(redisKey, pricingPromoResponse.toString())
+
+            connection.close()
+            return ResponseEntity.ok(pricingPromoResponse)
+        }
+
+        // Handle error scenario when Pricing Service call fails or returns an error status
+        connection.close()
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred while fetching pricing information.")
     }
 }
 
 
-dependencies {
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.2'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.2'
-    testImplementation 'io.mockk:mockk:1.12.0'
-    testImplementation 'org.mockito:mockito-junit-jupiter:3.13.0'
-}
+implementation 'org.springframework.boot:spring-boot-starter-web'
+implementation 'org.springframework.boot:spring-boot-starter-web-services'
+implementation 'io.lettuce:lettuce-core:6.1.1'
