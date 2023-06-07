@@ -230,3 +230,17 @@ class SkuVariantController(
 }
 
 
+
+return arrayOf(
+            SkuPromotion(
+                unitPrice = "variantunit123",
+                description = "variantdesc123",
+                startDate = "2023-06-01",
+                endDate = "2023-06-30",
+                promoId = "promo123",
+                adBlockId = "adblock123",
+                saleOfferType = "discount",
+                eventId = "event123"
+            )
+        )
+
