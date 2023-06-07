@@ -1,0 +1,86 @@
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
+import org.springframework.cache.annotation.EnableCaching
+import org.springframework.cache.interceptor.KeyGenerator
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.data.redis.cache.RedisCacheConfiguration
+import org.springframework.data.redis.cache.RedisCacheManager
+import org.springframework.data.redis.connection.RedisConnectionFactory
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
+import org.springframework.data.redis.serializer.RedisSerializationContext
+import org.springframework.data.redis.serializer.StringRedisSerializer
+
+@Configuration
+@EnableCaching
+class RedisCacheConfig {
+    @Autowired
+    private lateinit var connectionFactory: RedisConnectionFactory
+
+    @Bean
+    fun cacheManager(): CacheManager {
+        val redisCacheConfiguration = RedisCacheConfiguration.defaultCacheConfig()
+            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(StringRedisSerializer()))
+            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(GenericJackson2JsonRedisSerializer()))
+
+        return RedisCacheManager.builder(connectionFactory)
+            .cacheDefaults(redisCacheConfiguration)
+            .build()
+    }
+
+    @Bean("cacheKeyGenerator")
+    fun cacheKeyGenerator(): KeyGenerator {
+        return KeyGenerator { target, method, params ->
+            val keyParams = mutableListOf(target.javaClass.name, method.name)
+            keyParams.addAll(params.map { it?.toString() ?: "" })
+            keyParams.joinToString(":")
+        }
+    }
+}
+
+
+implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+implementation 'org.springframework.boot:spring-boot-starter-cache'
+
+
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
+import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.stereotype.Service
+
+@Service
+class CachingService(private val redisTemplate: RedisTemplate<String, PricingPromoResponse>) {
+
+    @Cacheable(value = ["pricingPromoResponseCache"], key = "#skuId")
+    fun getCachedPricingPromoResponse(skuId: String): PricingPromoResponse? {
+        val valueOperations = redisTemplate.opsForValue()
+        return valueOperations.get(skuId)
+    }
+
+    @CachePut(value = ["pricingPromoResponseCache"], key = "#skuId")
+    fun cachePricingPromoResponse(skuId: String, pricingPromoResponse: PricingPromoResponse): PricingPromoResponse {
+        val valueOperations = redisTemplate.opsForValue()
+        valueOperations.set(skuId, pricingPromoResponse)
+        return pricingPromoResponse
+    }
+
+    @CacheEvict(value = ["pricingPromoResponseCache"], key = "#skuId")
+    fun evictCachedPricingPromoResponse(skuId: String) {
+        // This method will remove the PricingPromoResponse associated with the specified SKU ID from the cache
+    }
+}
+
+
+spring:
+  redis:
+    host: localhost          # Redis server host
+    port: 6379              # Redis server port
+    password:               # Redis server password (if applicable)
+    database: 0             # Redis database index
+    lettuce:
+      pool:
+        max-active: 8       # Maximum number of active connections in the pool
+        max-idle: 8         # Maximum number of idle connections in the pool
+        min-idle: 0         # Minimum number of idle connections in the pool
+        max-wait: -1        # Maximum wait time for acquiring a connection from the pool (in milliseconds)
