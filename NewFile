@@ -382,4 +382,20 @@ class SkuVariantController(
     }
 }
 
+//----dummy data for pricing
+
+ fun getPricingData(skuId: String): PricingData {
+        // Create dummy test data
+        return PricingData(
+            listPriceMin = 9,
+            listPriceMax = 11,
+            salePriceMin = 7,
+            salePriceMax = 9,
+            carePassPriceMin = 6,
+            carePassPriceMax = 8,
+            unitPriceMin = "unitmin123",
+            unitPriceMax = "unitmax123"
+        )
+    }
+
 
