@@ -270,3 +270,32 @@ class PricingService {
     }
 }
 
+
+@Service
+class PricingService {
+    @Autowired
+    lateinit var restTemplate: RestTemplate
+
+    fun getPricingData(skuId: String): PricingData {
+        val pricingServiceUrl = "http://pricing-service-url/pricing/services/v1/{skuId}"
+        val response = restTemplate.getForObject(pricingServiceUrl, PricingData::class.java, skuId)
+                ?: throw RuntimeException("Failed to retrieve pricing data")
+
+        return response
+    }
+}
+
+
+package com.example.promoprice.model
+
+data class PricingData(
+    val listPriceMin: Int,
+    val listPriceMax: Int,
+    val salePriceMin: Int,
+    val salePriceMax: Int,
+    val carePassPriceMin: Int,
+    val carePassPriceMax: Int,
+    val unitPriceMin: String,
+    val unitPriceMax: String
+)
+
