@@ -243,4 +243,30 @@ return arrayOf(
                 eventId = "event123"
             )
         )
+//---Pricing Service Rest call
+
+@Service
+class PricingService {
+    @Autowired
+    lateinit var restTemplate: RestTemplate
+
+    fun getPricingData(skuId: String): PricingData {
+        val pricingServiceUrl = "http://pricing-service-url/pricing/services/v1/{skuId}"
+        val response = restTemplate.getForObject(pricingServiceUrl, PricingResponse::class.java, skuId)
+
+        // Extract the required fields from the response and create a PricingData object
+        val pricingData = PricingData(
+            listPriceMin = response?.listPriceMin ?: 0,
+            listPriceMax = response?.listPriceMax ?: 0,
+            salePriceMin = response?.salePriceMin ?: 0,
+            salePriceMax = response?.salePriceMax ?: 0,
+            carePassPriceMin = response?.carePassPriceMin ?: 0,
+            carePassPriceMax = response?.carePassPriceMax ?: 0,
+            unitPriceMin = response?.unitPriceMin ?: "",
+            unitPriceMax = response?.unitPriceMax ?: ""
+        )
+
+        return pricingData
+    }
+}
 
