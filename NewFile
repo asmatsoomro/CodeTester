@@ -1,77 +1,128 @@
 package com.example.promoprice.controller
 
-import com.example.promoprice.model.PricePromo
 import com.example.promoprice.model.PricingPromoResponse
-import com.example.promoprice.model.PricingResponse
-import com.example.promoprice.model.PromoResponse
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.client.RestTemplate
-import io.lettuce.core.RedisClient
-import io.lettuce.core.api.StatefulRedisConnection
-import io.lettuce.core.api.sync.RedisCommands
 
 @RestController
 @RequestMapping("/promo-price/services/v1/sku-variants")
 class SkuVariantController {
 
-    @Autowired
-    lateinit var redisClient: RedisClient
-
-    @Autowired
-    lateinit var restTemplate: RestTemplate
-
     @GetMapping("/{skuId}")
-    fun getSkuVariant(@PathVariable skuId: String): ResponseEntity<Any> {
-        val connection: StatefulRedisConnection<String, String> = redisClient.connect()
-        val syncCommands: RedisCommands<String, String> = connection.sync()
-        val redisKey = "sku:$skuId"
-
-        if (syncCommands.exists(redisKey) == 1L) {
-            val redisResponse = syncCommands.get(redisKey)
-            val pricePromo = PricePromo.fromString(redisResponse)
-            connection.close()
-            return ResponseEntity.ok(pricePromo)
-        }
-
-        // If the entry is not in Redis, make a RestTemplate call to the Pricing Service
-        val pricingServiceUrl = "http://pricing-service-url/Pricing/v1/sku/{skuId}"
-        val pricingResponse: ResponseEntity<PricingResponse> = restTemplate.getForEntity(pricingServiceUrl, PricingResponse::class.java, skuId)
-
-        if (pricingResponse.statusCode == HttpStatus.OK) {
-            val pricingPromoResponse = PricingPromoResponse(
-                skuId = skuId,
-                price = pricingResponse.body!!.price,
-                promoCode = ""
+    fun getSkuVariant(@PathVariable skuId: String): ResponseEntity<PricingPromoResponse> {
+        // Create dummy test data
+        val pricingPromoResponse = PricingPromoResponse(
+            skuId = skuId,
+            storeId = "store123",
+            context = "context123",
+            singleSkuProduct = true,
+            skuPrice = PricingPromoResponse.SkuPrice(
+                listPrice = 10,
+                salePrice = 8,
+                carePassPrice = 7,
+                unitPrice = "unit123"
+            ),
+            skuRangePrice = PricingPromoResponse.SkuRangePrice(
+                listPriceMin = 9,
+                listPriceMax = 11,
+                salePriceMin = 7,
+                salePriceMax = 9,
+                carePassPriceMin = 6,
+                carePassPriceMax = 8,
+                unitPriceMin = "unitmin123",
+                unitPriceMax = "unitmax123"
+            ),
+            variants = listOf(
+                PricingPromoResponse.Variant(
+                    skuId = "variant1",
+                    storeId = "store123",
+                    skuPrice = PricingPromoResponse.SkuPrice(
+                        listPrice = 15,
+                        salePrice = 12,
+                        carePassPrice = 10,
+                        unitPrice = "variantunit123"
+                    ),
+                    variantSkuPromotions = listOf(
+                        PricingPromoResponse.SkuPromotion(
+                            unitPrice = "variantunit123",
+                            description = "variantdesc123",
+                            startDate = "2023-06-01",
+                            endDate = "2023-06-30",
+                            promoId = "promo123",
+                            adBlockId = "adblock123",
+                            saleOfferType = "discount",
+                            eventId = "event123"
+                        )
+                    )
+                )
+            ),
+            skuPromotions = listOf(
+                PricingPromoResponse.SkuPromotion(
+                    unitPrice = "unit123",
+                    description = "desc123",
+                    startDate = "2023-06-01",
+                    endDate = "2023-06-30",
+                    promoId = "promo123",
+                    adBlockId = "adblock123",
+                    saleOfferType = "discount",
+                    eventId = "event123"
+                )
             )
+        )
 
-            // Make a RestTemplate call to the Promo Service
-            val promoServiceUrl = "http://promo-service-url/promo-pricing/v1/sku/{skuId}"
-            val promoResponse: ResponseEntity<PromoResponse> = restTemplate.getForEntity(promoServiceUrl, PromoResponse::class.java, skuId)
-
-            if (promoResponse.statusCode == HttpStatus.OK) {
-                pricingPromoResponse.promoCode = promoResponse.body!!.promoCode
-            }
-
-            // Store the fetched data in Redis for future use
-            syncCommands.set(redisKey, pricingPromoResponse.toString())
-
-            connection.close()
-            return ResponseEntity.ok(pricingPromoResponse)
-        }
-
-        // Handle error scenario when Pricing Service call fails or returns an error status
-        connection.close()
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred while fetching pricing information.")
+        return ResponseEntity.ok(pricingPromoResponse)
     }
 }
 
 
-implementation 'org.springframework.boot:spring-boot-starter-web'
-implementation 'org.springframework.boot:spring-boot-starter-web-services'
-implementation 'io.lettuce:lettuce-core:6.1.1'
+package com.example.promoprice.model
+
+data class PricingPromoResponse(
+    val skuId: String,
+    val storeId: String,
+    val context: String,
+    val singleSkuProduct: Boolean,
+    val skuPrice: SkuPrice,
+    val skuRangePrice: SkuRangePrice,
+    val variants: List<Variant>,
+    val skuPromotions: List<SkuPromotion>
+) {
+    data class SkuPrice(
+        val listPrice: Int,
+        val salePrice: Int,
+        val carePassPrice: Int,
+        val unitPrice: String
+    )
+
+    data class SkuRangePrice(
+        val listPriceMin: Int,
+        val listPriceMax: Int,
+        val salePriceMin: Int,
+        val salePriceMax: Int,
+        val carePassPriceMin: Int,
+        val carePassPriceMax: Int,
+        val unitPriceMin: String,
+        val unitPriceMax: String
+    )
+
+    data class Variant(
+        val skuId: String,
+        val storeId: String,
+        val skuPrice: SkuPrice,
+        val variantSkuPromotions: List<SkuPromotion>
+    )
+
+    data class SkuPromotion(
+        val unitPrice: String,
+        val description: String,
+        val startDate: String,
+        val endDate: String,
+        val promoId: String,
+        val adBlockId: String,
+        val saleOfferType: String,
+        val eventId: String
+    )
+}
