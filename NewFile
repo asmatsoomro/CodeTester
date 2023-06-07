@@ -299,3 +299,87 @@ data class PricingData(
     val unitPriceMax: String
 )
 
+
+
+//---controller version 3-----
+
+@RestController
+@RequestMapping("/promo-price/services/v1/sku-variants")
+class SkuVariantController(
+    private val promoService: PromoService,
+    private val pricingService: PricingService
+) {
+
+    @GetMapping("/{skuId}")
+    fun getSkuVariant(@PathVariable skuId: String): ResponseEntity<PricingPromoResponse> {
+        // Call PromoService to retrieve SkuPromotions
+        val skuPromotions: Array<SkuPromotion>? = promoService.getSkuPromotions(skuId)
+
+        // Call PricingService to retrieve PricingData
+        val pricingData: PricingData = pricingService.getPricingData(skuId)
+
+        // Create dummy test data
+        val pricingPromoResponse = PricingPromoResponse(
+            skuId = skuId,
+            storeId = "store123",
+            context = "context123",
+            singleSkuProduct = true,
+            skuPrice = PricingPromoResponse.SkuPrice(
+                listPrice = 10,
+                salePrice = 8,
+                carePassPrice = 7,
+                unitPrice = "unit123"
+            ),
+            skuRangePrice = PricingPromoResponse.SkuRangePrice(
+                listPriceMin = pricingData.listPriceMin,
+                listPriceMax = pricingData.listPriceMax,
+                salePriceMin = pricingData.salePriceMin,
+                salePriceMax = pricingData.salePriceMax,
+                carePassPriceMin = pricingData.carePassPriceMin,
+                carePassPriceMax = pricingData.carePassPriceMax,
+                unitPriceMin = pricingData.unitPriceMin,
+                unitPriceMax = pricingData.unitPriceMax
+            ),
+            variants = listOf(
+                PricingPromoResponse.Variant(
+                    skuId = "variant1",
+                    storeId = "store123",
+                    skuPrice = PricingPromoResponse.SkuPrice(
+                        listPrice = 15,
+                        salePrice = 12,
+                        carePassPrice = 10,
+                        unitPrice = "variantunit123"
+                    ),
+                    variantSkuPromotions = skuPromotions?.map {
+                        PricingPromoResponse.SkuPromotion(
+                            unitPrice = it.unitPrice,
+                            description = it.description,
+                            startDate = it.startDate,
+                            endDate = it.endDate,
+                            promoId = it.promoId,
+                            adBlockId = it.adBlockId,
+                            saleOfferType = it.saleOfferType,
+                            eventId = it.eventId
+                        )
+                    } ?: emptyList()
+                )
+            ),
+            skuPromotions = skuPromotions?.map {
+                PricingPromoResponse.SkuPromotion(
+                    unitPrice = it.unitPrice,
+                    description = it.description,
+                    startDate = it.startDate,
+                    endDate = it.endDate,
+                    promoId = it.promoId,
+                    adBlockId = it.adBlockId,
+                    saleOfferType = it.saleOfferType,
+                    eventId = it.eventId
+                )
+            } ?: emptyList()
+        )
+
+        return ResponseEntity.ok(pricingPromoResponse)
+    }
+}
+
+
