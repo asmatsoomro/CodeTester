@@ -126,3 +126,39 @@ data class PricingPromoResponse(
         val eventId: String
     )
 }
+
+
+
+package com.example.promoprice.service
+
+import com.example.promoprice.model.SkuPromotion
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.stereotype.Service
+import org.springframework.web.client.RestTemplate
+
+@Service
+class PromoService {
+    @Autowired
+    lateinit var restTemplate: RestTemplate
+
+    fun getSkuPromotions(skuId: String): Array<SkuPromotion>? {
+        val promoServiceUrl = "http://promo-service-url/promo-price/services/v1/sku/{skuId}"
+        val response = restTemplate.getForObject(promoServiceUrl, Array<SkuPromotion>::class.java, skuId)
+        return response
+    }
+}
+
+
+package com.example.promoprice.model
+
+data class SkuPromotion(
+    val unitPrice: String,
+    val description: String,
+    val startDate: String,
+    val endDate: String,
+    val promoId: String,
+    val adBlockId: String,
+    val saleOfferType: String,
+    val eventId: String
+)
+
