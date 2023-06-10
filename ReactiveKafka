@@ -42,3 +42,80 @@ fun main(args: Array<String>) {
         println("Received promo with id ${promo.promoId} and description ${promo.promoDescription}")
     }
 }
+
+
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.ProducerConfig
+import org.apache.kafka.common.serialization.StringSerializer
+import org.junit.ClassRule
+import org.junit.Test
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
+import reactor.core.publisher.Flux
+import reactor.kafka.receiver.KafkaReceiver
+import reactor.kafka.receiver.ReceiverOptions
+import reactor.kafka.receiver.ReceiverRecord
+import reactor.kafka.sender.KafkaSender
+import reactor.kafka.sender.SenderOptions
+import reactor.kafka.sender.SenderRecord
+import reactor.test.StepVerifier
+
+class KafkaConsumerTest {
+    companion object {
+        @ClassRule
+        @JvmField
+        val embeddedKafkaRule = EmbeddedKafkaRule(1, true, "promo-topic")
+
+        init {
+            // Create the topic with required partitions and replicas
+            val topic = embeddedKafkaRule.embeddedKafka().getTopics()[0]
+            embeddedKafkaRule.embeddedKafka().addTopics(NewTopic(topic, 1, 1.toShort()))
+        }
+    }
+
+    @Test
+    fun testKafkaConsumer() {
+        val bootstrapServers = embeddedKafkaRule.embeddedKafka().brokersAsString
+        val topic = "promo-topic"
+        val consumerGroupId = "promo-consumer-group"
+
+        // Set up the Kafka Sender to produce test messages
+        val senderOptions = SenderOptions.create<String, String>(mapOf(
+            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
+            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java,
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java
+        ))
+
+        val kafkaSender = KafkaSender.create(senderOptions)
+
+        val testMessage = "Test message"
+        val senderRecord = SenderRecord.create(topic, null, null, null, testMessage)
+        kafkaSender.send(Flux.just(senderRecord)).blockLast()
+
+        // Set up the Kafka Receiver to consume messages
+        val receiverOptions = ReceiverOptions.create<String, String>(mapOf(
+            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
+            ConsumerConfig.GROUP_ID_CONFIG to consumerGroupId,
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java
+        ))
+            .subscription(listOf(topic))
+
+        val kafkaReceiver = KafkaReceiver.create(receiverOptions)
+
+        val kafkaFlux: Flux<ReceiverRecord<String, String>> = kafkaReceiver.receive()
+
+        // Use StepVerifier to verify the received messages
+        StepVerifier.create(kafkaFlux)
+            .assertNext { record ->
+                val receivedMessage = record.value()
+                // Assert that the received message matches the test message
+                assertEquals(testMessage, receivedMessage)
+            }
+            .thenCancel()
+            .verify()
+
+        kafkaReceiver.close()
+        kafkaSender.close()
+    }
+}
+
