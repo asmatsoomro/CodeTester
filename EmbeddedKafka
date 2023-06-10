@@ -1,0 +1,74 @@
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerConfig
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.serialization.StringDeserializer
+import org.apache.kafka.common.serialization.StringSerializer
+import org.junit.Assert.assertEquals
+import org.junit.ClassRule
+import org.junit.Test
+import org.springframework.kafka.core.DefaultKafkaProducerFactory
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory
+import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
+import java.time.Duration
+import java.util.*
+
+class KafkaTest {
+
+    companion object {
+        @ClassRule
+        @JvmField
+        val embeddedKafkaRule = EmbeddedKafkaRule(1, true, "test-topic")
+    }
+
+    @Test
+    fun testKafkaMessageConsumption() {
+        val topic = "test-topic"
+        val message = """{"key": "value"}"""
+
+        // Create a Kafka producer configuration
+        val producerProps = Properties().apply {
+            put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, embeddedKafkaRule.embeddedKafka().brokersAsString)
+            put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
+            put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
+        }
+
+        // Create a Kafka producer using the producer configuration
+        val producer = KafkaProducer<String, String>(producerProps)
+
+        // Produce a message to the topic
+        val producerRecord = ProducerRecord(topic, message)
+        producer.send(producerRecord)
+        producer.flush()
+        producer.close()
+
+        // Create a Kafka consumer configuration
+        val consumerProps = Properties().apply {
+            put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, embeddedKafkaRule.embeddedKafka().brokersAsString)
+            put(ConsumerConfig.GROUP_ID_CONFIG, "test-consumer-group")
+            put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
+            put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
+            put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+        }
+
+        // Create a Kafka consumer using the consumer configuration
+        val consumer = KafkaConsumer<String, String>(consumerProps)
+
+        // Subscribe to the topic
+        consumer.subscribe(listOf(topic))
+
+        // Consume a single message from the topic
+        val consumerRecords = consumer.poll(Duration.ofSeconds(5))
+        assertEquals(1, consumerRecords.count())
+
+        // Assert the consumed message
+        val record: ConsumerRecord<String, String> = consumerRecords.iterator().next()
+        assertEquals(topic, record.topic())
+        assertEquals(message, record.value())
+
+        consumer.close()
+    }
+}
