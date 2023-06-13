@@ -54,3 +54,65 @@ class PricingService(private val restTemplate: RestTemplate) {
     }
 }
 
+
+
+@RestController
+@RequestMapping("/promo-price/services/v1/sku-variants")
+class SkuVariantController {
+
+    @Autowired
+    private lateinit var cachingService: CachingService
+
+    @Autowired
+    private lateinit var promoService: PromoService
+
+    @Autowired
+    private lateinit var pricingService: PricingService
+
+    @GetMapping("/{skuId}")
+    fun getPromoPriceForSku(@PathVariable skuId: String): PricingPromoResponse {
+        val cachedResponse = cachingService.getCachedPricingPromoResponse(skuId)
+        if (cachedResponse != null) {
+            return cachedResponse
+        }
+
+        val promoResponseDeferred = runBlocking { async { promoService.getPromoResponse(skuId) } }
+        val pricingResponseDeferred = runBlocking { async { pricingService.getPricingData(skuId) } }
+
+        val promoResponse = promoResponseDeferred.await()
+        val pricingResponse = pricingResponseDeferred.await()
+
+        val pricingPromoResponse = PricingPromoResponse(
+            skuId = skuId,
+            storeId = pricingResponse.responseData?.storeId ?: "",
+            context = "FS",
+            singleSkuProduct = true,
+            skuPrice = pricingResponse.responseData?.skuPrice,
+            skuRangePrice = pricingResponse.responseData?.skuRangePrice,
+            variants = pricingResponse.responseData?.variants?.map {
+                PricingPromoResponse.Variant(
+                    skuId = it.skuId ?: "",
+                    storeId = it.storeId ?: "",
+                    skuPrice = it.skuPrice
+                )
+            } ?: emptyList(),
+            skuPromotions = promoResponse.skuPromotions.map {
+                PricingPromoResponse.SkuPromotion(
+                    unitPrice = it.unitPrice,
+                    description = it.description,
+                    startDate = it.startDate,
+                    endDate = it.endDate,
+                    promoId = it.promoId,
+                    adBlockId = it.adBlockId,
+                    saleOfferType = it.saleOfferType,
+                    eventId = it.eventId
+                )
+            }
+        )
+
+        cachingService.cachePricingPromoResponse(skuId, pricingPromoResponse)
+
+        return pricingPromoResponse
+    }
+}
+
