@@ -87,7 +87,7 @@ data class PricingPromoResponse(
     val singleSkuProduct: Boolean,
     val skuPrice: SkuPrice,
     val skuRangePrice: SkuRangePrice,
-    val variants: List<Variant>,
+    val variants: List<SkuVariant>,
     val skuPromotions: List<SkuPromotion>
 ) {
     data class SkuPrice(
@@ -108,7 +108,7 @@ data class PricingPromoResponse(
         val unitPriceMax: String
     )
 
-    data class Variant(
+    data class SkuVariant(
         val skuId: String,
         val storeId: String,
         val skuPrice: SkuPrice,
@@ -124,7 +124,11 @@ data class PricingPromoResponse(
         val adBlockId: String,
         val saleOfferType: String,
         val eventId: String
-    )
+    ) {
+        constructor() : this("", "", "", "", "", "", "", "")
+    }
+
+    constructor() : this("", "", "", false, SkuPrice(0, 0, 0, ""), SkuRangePrice(0, 0, 0, 0, 0, 0, "", ""), emptyList(), emptyList())
 }
 
 
