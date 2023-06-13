@@ -37,3 +37,20 @@ data class PricingResponse(
         @JsonProperty("skuPrice") val skuPrice: SkuPrice
     )
 }
+
+
+import org.springframework.stereotype.Service
+import org.springframework.web.client.RestTemplate
+
+@Service
+class PricingService(private val restTemplate: RestTemplate) {
+
+    fun getPricingData(skuId: String): PricingResponse {
+        // Call the pricing service API to fetch pricing data for the given SKU ID
+        val url = "/pricing/services/v1/{skuId}"
+        val response = restTemplate.getForObject(url, PricingResponse::class.java, skuId)
+        return response?.copy(response = response.response.copy(skuId = skuId))
+            ?: throw Exception("Failed to fetch pricing data for SKU: $skuId")
+    }
+}
+
