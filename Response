@@ -1,0 +1,110 @@
+import com.fasterxml.jackson.annotation.JsonProperty
+import lombok.NoArgsConstructor
+
+@NoArgsConstructor
+data class PricingPromoResponse(
+    @JsonProperty("skuId")
+    val skuId: String,
+    
+    @JsonProperty("storeId")
+    val storeId: String,
+    
+    @JsonProperty("context")
+    val context: String,
+    
+    @JsonProperty("singleSkuProduct")
+    val singleSkuProduct: Boolean,
+    
+    @JsonProperty("skuPrice")
+    val skuPrice: SkuPrice,
+    
+    @JsonProperty("skuRangePrice")
+    val skuRangePrice: SkuRangePrice,
+    
+    @JsonProperty("variants")
+    val variants: List<SkuVariant>,
+    
+    @JsonProperty("skuPromotions")
+    val skuPromotions: List<SkuPromotion>
+) {
+    data class SkuPrice(
+        @JsonProperty("listPrice")
+        val listPrice: Int,
+        
+        @JsonProperty("salePrice")
+        val salePrice: Int,
+        
+        @JsonProperty("carePassPrice")
+        val carePassPrice: Int,
+        
+        @JsonProperty("unitPrice")
+        val unitPrice: String
+    )
+
+    data class SkuRangePrice(
+        @JsonProperty("listPriceMin")
+        val listPriceMin: Int,
+        
+        @JsonProperty("listPriceMax")
+        val listPriceMax: Int,
+        
+        @JsonProperty("salePriceMin")
+        val salePriceMin: Int,
+        
+        @JsonProperty("salePriceMax")
+        val salePriceMax: Int,
+        
+        @JsonProperty("carePassPriceMin")
+        val carePassPriceMin: Int,
+        
+        @JsonProperty("carePassPriceMax")
+        val carePassPriceMax: Int,
+        
+        @JsonProperty("unitPriceMin")
+        val unitPriceMin: String,
+        
+        @JsonProperty("unitPriceMax")
+        val unitPriceMax: String
+    )
+
+    data class SkuVariant(
+        @JsonProperty("skuId")
+        val skuId: String,
+        
+        @JsonProperty("storeId")
+        val storeId: String,
+        
+        @JsonProperty("skuPrice")
+        val skuPrice: SkuPrice,
+        
+        @JsonProperty("variantSkuPromotions")
+        val variantSkuPromotions: List<SkuPromotion>
+    )
+
+    @NoArgsConstructor
+    data class SkuPromotion(
+        @JsonProperty("unitPrice")
+        val unitPrice: String,
+        
+        @JsonProperty("description")
+        val description: String,
+        
+        @JsonProperty("startDate")
+        val startDate: String,
+        
+        @JsonProperty("endDate")
+        val endDate: String,
+        
+        @JsonProperty("promoId")
+        val promoId: String,
+        
+        @JsonProperty("adBlockId")
+        val adBlockId: String,
+        
+        @JsonProperty("saleOfferType")
+        val saleOfferType: String,
+        
+        @JsonProperty("eventId")
+        val eventId: String
+    )
+}
