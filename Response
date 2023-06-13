@@ -1,61 +1,3 @@
-import com.fasterxml.jackson.annotation.JsonProperty
-
-data class PricingResponse(
-    @JsonProperty("response") val response: Response,
-    @JsonProperty("skuId") val skuId: String,
-    @JsonProperty("storeId") val storeId: String,
-    @JsonProperty("skuPrice") val skuPrice: SkuPrice,
-    @JsonProperty("xgridId") val xgridId: String
-) {
-    data class Response(
-        @JsonProperty("skuId") val skuId: String,
-        @JsonProperty("storeId") val storeId: String,
-        @JsonProperty("skuPrice") val skuPrice: SkuPrice
-    )
-
-    data class SkuPrice(
-        @JsonProperty("listPrice") val listPrice: Double,
-        @JsonProperty("salePrice") val salePrice: Double,
-        @JsonProperty("carepassPrice") val carepassPrice: Double,
-        @JsonProperty("unitPrice") val unitPrice: String
-    )
-
-    data class SkuRangePrice(
-        @JsonProperty("listPriceMin") val listPriceMin: Double,
-        @JsonProperty("listPriceMax") val listPriceMax: Double,
-        @JsonProperty("salePriceMin") val salePriceMin: Double,
-        @JsonProperty("salePriceMax") val salePriceMax: Double,
-        @JsonProperty("carePassPriceMin") val carePassPriceMin: Double,
-        @JsonProperty("carePassPriceMax") val carePassPriceMax: Double,
-        @JsonProperty("unitPriceMin") val unitPriceMin: String,
-        @JsonProperty("unitPriceMax") val unitPriceMax: String
-    )
-
-    data class Variant(
-        @JsonProperty("skuId") val skuId: String,
-        @JsonProperty("storeId") val storeId: String,
-        @JsonProperty("skuPrice") val skuPrice: SkuPrice
-    )
-}
-
-
-import org.springframework.stereotype.Service
-import org.springframework.web.client.RestTemplate
-
-@Service
-class PricingService(private val restTemplate: RestTemplate) {
-
-    fun getPricingData(skuId: String): PricingResponse {
-        // Call the pricing service API to fetch pricing data for the given SKU ID
-        val url = "/pricing/services/v1/{skuId}"
-        val response = restTemplate.getForObject(url, PricingResponse::class.java, skuId)
-        return response?.copy(response = response.response.copy(skuId = skuId))
-            ?: throw Exception("Failed to fetch pricing data for SKU: $skuId")
-    }
-}
-
-
-
 @RestController
 @RequestMapping("/promo-price/services/v1/sku-variants")
 class SkuVariantController {
@@ -77,25 +19,19 @@ class SkuVariantController {
         }
 
         val promoResponseDeferred = runBlocking { async { promoService.getPromoResponse(skuId) } }
-        val pricingResponseDeferred = runBlocking { async { pricingService.getPricingData(skuId) } }
+        val pricingResponseDeferred = runBlocking { async { pricingService.getPricingResponse(skuId) } }
 
         val promoResponse = promoResponseDeferred.await()
         val pricingResponse = pricingResponseDeferred.await()
 
         val pricingPromoResponse = PricingPromoResponse(
             skuId = skuId,
-            storeId = pricingResponse.responseData?.storeId ?: "",
-            context = "FS",
-            singleSkuProduct = true,
-            skuPrice = pricingResponse.responseData?.skuPrice,
-            skuRangePrice = pricingResponse.responseData?.skuRangePrice,
-            variants = pricingResponse.responseData?.variants?.map {
-                PricingPromoResponse.Variant(
-                    skuId = it.skuId ?: "",
-                    storeId = it.storeId ?: "",
-                    skuPrice = it.skuPrice
-                )
-            } ?: emptyList(),
+            storeId = pricingResponse.storeId,
+            context = pricingResponse.context,
+            singleSkuProduct = promoResponse.singleSkuProduct,
+            skuPrice = pricingResponse.skuPrice,
+            skuRangePrice = pricingResponse.skuRangePrice,
+            variants = pricingResponse.variants,
             skuPromotions = promoResponse.skuPromotions.map {
                 PricingPromoResponse.SkuPromotion(
                     unitPrice = it.unitPrice,
@@ -116,3 +52,54 @@ class SkuVariantController {
     }
 }
 
+
+
+
+import org.springframework.stereotype.Service
+
+@Service
+class PromoService {
+    fun getPromoResponse(skuId: String): PromoResponse {
+        // Perform your logic to retrieve the promo response for the given SKU ID
+        // and construct the PromoResponse object
+        val skuPromotions = listOf(
+            SkuPromotion(
+                unitPrice = "variantunit123",
+                description = "variantdesc123",
+                startDate = "2023-06-01",
+                endDate = "2023-06-30",
+                promoId = "promo123",
+                adBlockId = "adblock123",
+                saleOfferType = "discount",
+                eventId = "event123"
+            )
+        )
+
+        return PromoResponse(
+            skuId = skuId,
+            storeId = "store123",
+            context = "context123",
+            singleSkuProduct = true,
+            skuPromotions = skuPromotions
+        )
+    }
+}
+
+data class PromoResponse(
+    val skuId: String,
+    val storeId: String,
+    val context: String,
+    val singleSkuProduct: Boolean,
+    val skuPromotions: List<SkuPromotion>
+)
+
+data class SkuPromotion(
+    val unitPrice: String,
+    val description: String,
+    val startDate: String,
+    val endDate: String,
+    val promoId: String,
+    val adBlockId: String,
+    val saleOfferType: String,
+    val eventId: String
+)
