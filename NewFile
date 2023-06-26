@@ -111,3 +111,62 @@ class PromoService(private val restTemplate: RestTemplate) {
     }
 }
 
+
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RestController
+import reactor.core.publisher.Mono
+
+@RestController
+@RequestMapping("/sku")
+class SkuVariantController(
+    private val pricingService: PricingService,
+    private val promoService: PromoService
+) {
+
+    @GetMapping("/{skuId}")
+    fun getSkuVariantData(@PathVariable skuId: String): Mono<ResponseEntity<PricingPromoResponse>> {
+        val pricingMono = pricingService.getPricingData(skuId)
+            .map { ResponseEntity.ok(it) }
+            .onErrorReturn(ResponseEntity.notFound().build())
+
+        val promoMono = promoService.getPromoData(skuId)
+            .map { ResponseEntity.ok(it) }
+            .onErrorReturn(ResponseEntity.notFound().build())
+
+        return Mono.zip(pricingMono, promoMono)
+            .map { tuple ->
+                val pricingResponse = tuple.t1.body
+                val promoResponse = tuple.t2.body
+                val pricingPromoResponse = if (promoResponse != null) {
+                    PricingPromoResponse(
+                        skuId = skuId,
+                        storeId = pricingResponse?.storeId ?: "",
+                        context = pricingResponse?.context ?: "",
+                        singleSkuProduct = pricingResponse?.singleSkuProduct ?: false,
+                        skuPrice = pricingResponse?.skuPrice ?: SkuPrice(),
+                        skuRangePrice = pricingResponse?.skuRangePrice ?: SkuRangePrice(),
+                        variants = pricingResponse?.variants ?: emptyList(),
+                        skuPromotions = promoResponse.skuPromotion
+                    )
+                } else {
+                    PricingPromoResponse(
+                        skuId = skuId,
+                        storeId = pricingResponse?.storeId ?: "",
+                        context = pricingResponse?.context ?: "",
+                        singleSkuProduct = pricingResponse?.singleSkuProduct ?: false,
+                        skuPrice = pricingResponse?.skuPrice ?: SkuPrice(),
+                        skuRangePrice = pricingResponse?.skuRangePrice ?: SkuRangePrice(),
+                        variants = pricingResponse?.variants ?: emptyList(),
+                        skuPromotions = null
+                    )
+                }
+                ResponseEntity.ok(pricingPromoResponse)
+            }
+    }
+}
+
+
